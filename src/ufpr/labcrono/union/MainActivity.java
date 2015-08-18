@@ -27,6 +27,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+
 /* Para fazer:
  * - Verificar se o arquivo foi criado
  * - Criar as pastas, se nao existirem
@@ -95,11 +96,11 @@ public class MainActivity extends Activity {
     	try {
 			String classe = issue.getString("class");
 			
-			if ( classe.equals("Text") || classe.equals("Int") || classe.equals("Date") || classe.equals("Boolean") ){
+			if ( classe.equals("Text") || classe.equals("Int") || classe.equals("Date") ){
 				res += issue.getString("value").replace('|', ' ').replace('\n', ' ');
 			} else if ( classe.equals("Enum") ){
-				String id = issue.getString("value").replace('|', ' ').replace('\n', ' ');
-				res += issue.getJSONArray("box").getJSONObject( Integer.parseInt(id) ).getString("title");
+				int id = issue.getInt("value")-1;
+				res += issue.getJSONArray("box").getJSONObject( id ).getString("title");
 			} else if ( classe.equals("Checkbox") ){
 				JSONArray box = issue.getJSONArray("box");
 				JSONArray value = issue.getJSONArray("value");
@@ -113,9 +114,15 @@ public class MainActivity extends Activity {
 				}
 			}
 			
-			
-			if ( classe.equals("Boolean") && issue.has("box") ){
-			   	JSONArray box = issue.getJSONArray("box");
+			// Booklin
+			if ( classe.equals("Boolean") ){
+				int value = issue.getInt("value");
+				if ( value == 1 )
+					res += "não";
+				else if ( value == 2)
+					res += "sim";
+				
+				JSONArray box = issue.getJSONArray("box");
 		    	for (int i=0; i<box.length(); i++){
 		    		res += "|" + this.getValues( box.getJSONObject(i) );
 		    	}
