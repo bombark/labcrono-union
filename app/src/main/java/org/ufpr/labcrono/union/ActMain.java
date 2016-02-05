@@ -11,6 +11,7 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Vector;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,6 +45,8 @@ public class ActMain extends AppCompatActivity {
 	File root;
 	RadioGroup rg;
 
+	Stat stat;
+
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -57,11 +60,6 @@ public class ActMain extends AppCompatActivity {
 
 		this.show();
 
-
-
-
-
-
 		Button button = (Button) findViewById(R.id.button);
 		button.setOnClickListener(new View.OnClickListener() {
 			public void onClick(View v) {
@@ -69,20 +67,42 @@ public class ActMain extends AppCompatActivity {
 				RadioButton formchoosed = (RadioButton) findViewById(selectedId);
 				String form_name = formchoosed.getPrivateImeOptions();
 
-				//Toast.makeText(ActMain.this, form_name, Toast.LENGTH_SHORT).show();
-
 				try {
-					String filename = ActMain.this.generate_and_save(form_name);
-					ActMain.this.move_toBackup(form_name);
+					String filename = ActMain.this.generate_and_save(form_name,"results");
+					//ActMain.this.move_toBackup(form_name);
 					ActMain.this.update();
 					Toast.makeText(ActMain.this, "relatorio gerado em " + form_name + "/" + filename, Toast.LENGTH_SHORT).show();
-				} catch ( JSONException e ){
-					Toast.makeText(ActMain.this, "[ERROR]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-				} catch ( IOException e ){
-					Toast.makeText(ActMain.this, "[ERROR]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				} catch (JSONException e) {
+					Toast.makeText(ActMain.this, "[ERROR - button]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				} catch (IOException e) {
+					Toast.makeText(ActMain.this, "[ERROR - button]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
 			}
 		});
+
+
+		Button button_bkp = (Button) findViewById(R.id.button_bkp);
+		button_bkp.setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				int selectedId = rg.getCheckedRadioButtonId();
+				RadioButton formchoosed = (RadioButton) findViewById(selectedId);
+				String form_name = formchoosed.getPrivateImeOptions();
+
+				try {
+					String filename = ActMain.this.generate_and_save(form_name, "backup");
+					ActMain.this.update();
+					Toast.makeText(ActMain.this, "relatorio gerado em " + form_name + "/" + filename, Toast.LENGTH_SHORT).show();
+				} catch ( JSONException e ){
+					e.printStackTrace();
+					Toast.makeText(ActMain.this, "[ERROR - button_bkp]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				} catch ( IOException e ){
+					e.printStackTrace();
+					Toast.makeText(ActMain.this, "[ERROR - button_bkp]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+				}
+			}
+		});
+
+
 	}
 
 	@Override
@@ -141,7 +161,7 @@ public class ActMain extends AppCompatActivity {
 
 
 		} catch (IOException e ){
-			Toast.makeText(this, "[ERROR] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
+			Toast.makeText(this, "[ERROR - show] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
 		}
 	}
 
@@ -192,43 +212,68 @@ public class ActMain extends AppCompatActivity {
 	}
 
 
-	String getValues(JSONObject issue){
+	String getValues(JSONObject issue, int id, boolean is_visible){
 		String res = "";
 		try {
 			String classe = issue.getString("class");
 
-			if ( classe.equals("Text") || classe.equals("Int") || classe.equals("Date") ){
-				res += issue.getString("value").replace('|', ' ').replace('\n', ' ');
-			} else if ( classe.equals("Enum") ){
-				int id = issue.getInt("value")-1;
-				res += issue.getJSONArray("box").getJSONObject( id ).getString("title");
-			} else if ( classe.equals("Checkbox") ){
-				JSONArray box = issue.getJSONArray("box");
-				JSONArray value = issue.getJSONArray("value");
-				if ( value.length() > 0 ){
-					res = box.getJSONObject(0).getString("title");
-					for (int i=1; i<value.length(); i++){
-						if ( value.getBoolean(i) ){
-							res += ", "+box.getJSONObject(i).getString("title");
-						}
-					}
-				}
-			}
 
 			// Booklin
 			if ( classe.equals("Boolean") ){
-				int value = issue.getInt("value");
-				if ( value == 1 )
-					res += "não";
-				else if ( value == 2)
-					res += "sim";
+				boolean sub_is_visible = is_visible;
+				if ( is_visible ) {
+					int value = issue.getInt("value");
+					if (value == 1) {
+						sub_is_visible = false;
+						this.stat.add(id, 2, 0);
+						res += "não";
+					} else if (value == 2) {
+						sub_is_visible = true;
+						this.stat.add(id, 2, 1);
+						res += "sim";
+					}
+				}
 
 				JSONArray box = issue.getJSONArray("box");
 				for (int i=0; i<box.length(); i++){
-					res += "|" + this.getValues(box.getJSONObject(i));
+					res += "|" + this.getValues(box.getJSONObject(i), id+i, sub_is_visible);
 				}
 			}
+
+			if ( !is_visible ){
+				return res;
+			}
+
+
+			if ( classe.equals("Text") || classe.equals("Int") || classe.equals("Date") ){
+
+				res += issue.getString("value").replace('|', ' ').replace('\n', ' ');
+
+			} else if ( classe.equals("Enum") ){
+
+				JSONArray box = issue.getJSONArray("box");
+				int option_id = issue.getInt("value") - 1;
+				this.stat.add(id, box.length(), option_id);
+				res += box.getJSONObject(option_id).getString("title");
+
+			} else if ( classe.equals("Checkbox") ){
+
+				JSONArray box = issue.getJSONArray("box");
+				JSONArray value = issue.getJSONArray("value");
+				if (value.length() > 0) {
+					res = box.getJSONObject(0).getString("title");
+					for (int i = 1; i < value.length(); i++) {
+						if (value.getBoolean(i)) {
+							res += ", " + box.getJSONObject(i).getString("title");
+						}
+					}
+				}
+
+			}
+
+
 		} catch (JSONException e) {
+			Toast.makeText(this, "[ERROR - getValues] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
 			e.printStackTrace();
 		}
 		return res;
@@ -246,16 +291,54 @@ public class ActMain extends AppCompatActivity {
 				}
 			}
 		} catch (JSONException e) {
+			Toast.makeText(this, "[ERROR - getTitles] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
 			e.printStackTrace();
 		}
 		return res;
 	}
 
 
+	String getLabels(JSONObject issue){
+		String res = "";
+		try {
+			res += issue.getString("num").replace('|', ' ');
+			String classe = issue.getString("class");
+			if ( classe.equals("Boolean") && issue.has("box") ){
+				JSONArray box = issue.getJSONArray("box");
+				for (int i=0; i<box.length(); i++){
+					res += "|" + this.getLabels(box.getJSONObject(i));
+				}
+			}
+		} catch (JSONException e) {
+			Toast.makeText(this, "[ERROR - getLabels] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
+			e.printStackTrace();
+		}
+		return res;
+	}
 
-	String generate_and_save(String form_name) throws JSONException,IOException {
 
-		File fd_json = new File( this.root,form_name+"/results" );
+	int getQtdeIssues(JSONObject issue, int total){
+		try {
+			String classe = issue.getString("class");
+			if ( classe.equals("Boolean") && issue.has("box") ){
+				JSONArray box = issue.getJSONArray("box");
+				for (int i=0; i<box.length(); i++){
+					total = getQtdeIssues(box.getJSONObject(i), total);
+				}
+			}
+		} catch (JSONException e) {
+			Toast.makeText(this, "[ERROR - getQtdeIssues] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
+			e.printStackTrace();
+		}
+		return total+1;
+	}
+
+
+
+	// form = ["backup","results"];
+	String generate_and_save(String form_name, String from) throws JSONException,IOException {
+
+		File fd_json = new File( this.root,form_name+"/"+from );
 		File listFile[] = fd_json.listFiles();
 		if (listFile == null ) {
 			throw new IOException("Nenhum formulario para gerar");
@@ -263,12 +346,28 @@ public class ActMain extends AppCompatActivity {
 		if ( listFile.length == 0 ) {
 			throw new IOException("Nenhum formulario para gerar");
 		}
-
 		String res  = new String();
 
-		// Coloca os titulos das perguntas na primeira linha
+		// Carrega o formulario
 		String text = loadJSON( listFile[0].getAbsolutePath() );
 		JSONArray  form = new JSONArray( text );
+
+		// Cria um Vetor para guardar as estatisticas
+		int size = this.getQtdeIssues(form.getJSONObject(0), 0);
+		for (int j=1; j<form.length(); j++){
+			size += this.getQtdeIssues(form.getJSONObject(j), 0);
+		}
+		this.stat = new Stat(size);
+
+
+		// Coloca os numeros das perguntas na primeira linha
+		res += this.getLabels(form.getJSONObject(0));
+		for (int j=1; j<form.length(); j++){
+			res += "|" + this.getLabels(form.getJSONObject(j));
+		}
+		res += "\n";
+
+		// Coloca os titulos das perguntas na segunda linha
 		res += this.getTitles( form.getJSONObject(0) );
 		for (int j=1; j<form.length(); j++){
 			res += "|" + this.getTitles( form.getJSONObject(j) );
@@ -280,19 +379,19 @@ public class ActMain extends AppCompatActivity {
 			text = loadJSON( listFile[i].getAbsolutePath() );
 			form = new JSONArray( text );
 			if ( form.length() > 0 ){
-				res += this.getValues( form.getJSONObject(0) );
+				res += this.getValues( form.getJSONObject(0), 0, true );
 				for (int j=1; j<form.length(); j++){
-					res += "|" + this.getValues( form.getJSONObject(j) );
+					res += "|" + this.getValues( form.getJSONObject(j), j, true );
 				}
 			}
 			res += "\n";
 		}
 
+		res += stat.toString(form);
+
+
 		// Salva todo o formulario em um arquivo
 		return this.save(form_name,res);
-
-
-
 	}
 
 
