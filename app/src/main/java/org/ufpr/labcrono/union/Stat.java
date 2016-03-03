@@ -38,12 +38,11 @@ public class Stat {
 	}
 
 
-	public String toString(JSONArray form) throws JSONException {
+	public String toString(Form form) throws JSONException {
 		String res = "\n\n\n\n\nEstatisticas\n";
 		for (int i=0; i<issuepkg.length; i++){
 			if ( issuepkg[i] != null){
-				JSONObject obj = form.getJSONObject(i);
-				res += obj.getString("num") + "|" + obj.getString("title").replace('|',' ').replace('\n',' ');
+				res += form.getTitle(i);
 				for (int j=0; j<issuepkg[i].size(); j++){
 					res += "|" + Integer.toString(issuepkg[i].get(j));
 				}

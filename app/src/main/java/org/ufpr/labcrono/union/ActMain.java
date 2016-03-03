@@ -48,6 +48,8 @@ public class ActMain extends AppCompatActivity {
 	Stat stat;
 
 
+	/* INTERFACE =================================================================================*/
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -69,7 +71,7 @@ public class ActMain extends AppCompatActivity {
 
 				try {
 					String filename = ActMain.this.generate_and_save(form_name,"results");
-					//ActMain.this.move_toBackup(form_name);
+					ActMain.this.move_toBackup(form_name);
 					ActMain.this.update();
 					Toast.makeText(ActMain.this, "relatorio gerado em " + form_name + "/" + filename, Toast.LENGTH_SHORT).show();
 				} catch (JSONException e) {
@@ -92,10 +94,10 @@ public class ActMain extends AppCompatActivity {
 					String filename = ActMain.this.generate_and_save(form_name, "backup");
 					ActMain.this.update();
 					Toast.makeText(ActMain.this, "relatorio gerado em " + form_name + "/" + filename, Toast.LENGTH_SHORT).show();
-				} catch ( JSONException e ){
+				} catch (JSONException e) {
 					e.printStackTrace();
 					Toast.makeText(ActMain.this, "[ERROR - button_bkp]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-				} catch ( IOException e ){
+				} catch (IOException e) {
 					e.printStackTrace();
 					Toast.makeText(ActMain.this, "[ERROR - button_bkp]: " + e.getMessage(), Toast.LENGTH_SHORT).show();
 				}
@@ -112,29 +114,10 @@ public class ActMain extends AppCompatActivity {
 		this.update();
 	}
 
-	public String loadJSON(String url) {
-		String json = null;
-		try {
-			File fd_json = new File( url );
-			if ( fd_json.exists()) {
-				FileInputStream is = new FileInputStream (fd_json);
-				int size = is.available();
-				byte[] buffer;
-				buffer = new byte[size];
-				is.read(buffer);
-				is.close();
-				json = new String(buffer, "UTF-8");
-			}
-		} catch (IOException ex) {
-			ex.printStackTrace();
-			return null;
-		}
-		return json;
-	}
-
-
+	/** Show
+	 *
+	 */
 	public void show(){
-
 		ArrayList<String> formpkg;
 		try {
 			formpkg = this.listForms();
@@ -166,7 +149,9 @@ public class ActMain extends AppCompatActivity {
 	}
 
 
-
+	/** Update
+	 *
+	 */
 	public void update(){
 		int size = this.rg.getChildCount();
 		for (int i=0; i<size; i++) {
@@ -178,6 +163,8 @@ public class ActMain extends AppCompatActivity {
 		}
 	}
 
+
+	/*--------------------------------------------------------------------------------------------*/
 
 
 	public ArrayList<String> listForms() throws IOException {
@@ -192,7 +179,10 @@ public class ActMain extends AppCompatActivity {
 	}
 
 
-
+	/** Get the amount of the llll in the folder ./$name/results/
+	 * @param name
+	 * @return
+	 */
 	int getQtdePesquisas(String name){
 		File fd_json = new File( this.root, name+"/results" );
 		File listFile[] = fd_json.listFiles();
@@ -202,6 +192,10 @@ public class ActMain extends AppCompatActivity {
 		return 0;
 	}
 
+	/** Get the amount of the aaa in the folder ./$name/backup/
+	 * @param name
+	 * @return
+	 */
 	int getQtdeBackup(String name){
 		File fd_json = new File( this.root, name+"/backup" );
 		File listFile[] = fd_json.listFiles();
@@ -212,130 +206,9 @@ public class ActMain extends AppCompatActivity {
 	}
 
 
-	String getValues(JSONObject issue, int id, boolean is_visible){
-		String res = "";
-		try {
-			String classe = issue.getString("class");
-
-
-			// Booklin
-			if ( classe.equals("Boolean") ){
-				boolean sub_is_visible = is_visible;
-				if ( is_visible ) {
-					int value = issue.getInt("value");
-					if (value == 1) {
-						sub_is_visible = false;
-						this.stat.add(id, 2, 0);
-						res += "não";
-					} else if (value == 2) {
-						sub_is_visible = true;
-						this.stat.add(id, 2, 1);
-						res += "sim";
-					}
-				}
-
-				JSONArray box = issue.getJSONArray("box");
-				for (int i=0; i<box.length(); i++){
-					res += "|" + this.getValues(box.getJSONObject(i), id+i, sub_is_visible);
-				}
-			}
-
-			if ( !is_visible ){
-				return res;
-			}
-
-
-			if ( classe.equals("Text") || classe.equals("Int") || classe.equals("Date") ){
-
-				res += issue.getString("value").replace('|', ' ').replace('\n', ' ');
-
-			} else if ( classe.equals("Enum") ){
-
-				JSONArray box = issue.getJSONArray("box");
-				int option_id = issue.getInt("value") - 1;
-				this.stat.add(id, box.length(), option_id);
-				res += box.getJSONObject(option_id).getString("title");
-
-			} else if ( classe.equals("Checkbox") ){
-
-				JSONArray box = issue.getJSONArray("box");
-				JSONArray value = issue.getJSONArray("value");
-				if (value.length() > 0) {
-					res = box.getJSONObject(0).getString("title");
-					for (int i = 1; i < value.length(); i++) {
-						if (value.getBoolean(i)) {
-							res += ", " + box.getJSONObject(i).getString("title");
-						}
-					}
-				}
-
-			}
-
-
-		} catch (JSONException e) {
-			Toast.makeText(this, "[ERROR - getValues] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
-			e.printStackTrace();
-		}
-		return res;
-	}
-
-	String getTitles(JSONObject issue){
-		String res = "";
-		try {
-			res += issue.getString("title").replace('|', ' ');
-			String classe = issue.getString("class");
-			if ( classe.equals("Boolean") && issue.has("box") ){
-				JSONArray box = issue.getJSONArray("box");
-				for (int i=0; i<box.length(); i++){
-					res += "|" + this.getTitles(box.getJSONObject(i));
-				}
-			}
-		} catch (JSONException e) {
-			Toast.makeText(this, "[ERROR - getTitles] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
-			e.printStackTrace();
-		}
-		return res;
-	}
-
-
-	String getLabels(JSONObject issue){
-		String res = "";
-		try {
-			res += issue.getString("num").replace('|', ' ');
-			String classe = issue.getString("class");
-			if ( classe.equals("Boolean") && issue.has("box") ){
-				JSONArray box = issue.getJSONArray("box");
-				for (int i=0; i<box.length(); i++){
-					res += "|" + this.getLabels(box.getJSONObject(i));
-				}
-			}
-		} catch (JSONException e) {
-			Toast.makeText(this, "[ERROR - getLabels] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
-			e.printStackTrace();
-		}
-		return res;
-	}
-
-
-	int getQtdeIssues(JSONObject issue, int total){
-		try {
-			String classe = issue.getString("class");
-			if ( classe.equals("Boolean") && issue.has("box") ){
-				JSONArray box = issue.getJSONArray("box");
-				for (int i=0; i<box.length(); i++){
-					total = getQtdeIssues(box.getJSONObject(i), total);
-				}
-			}
-		} catch (JSONException e) {
-			Toast.makeText(this, "[ERROR - getQtdeIssues] : "+e.getMessage(), Toast.LENGTH_SHORT).show();
-			e.printStackTrace();
-		}
-		return total+1;
-	}
 
 
 
-	// form = ["backup","results"];
 	String generate_and_save(String form_name, String from) throws JSONException,IOException {
 
 		File fd_json = new File( this.root,form_name+"/"+from );
@@ -348,47 +221,34 @@ public class ActMain extends AppCompatActivity {
 		}
 		String res  = new String();
 
-		// Carrega o formulario
-		String text = loadJSON( listFile[0].getAbsolutePath() );
-		JSONArray  form = new JSONArray( text );
+		Form form = new Form();
+		form.load( listFile[0].getAbsolutePath() );
+		this.stat = new Stat( form.getSize() );
 
-		// Cria um Vetor para guardar as estatisticas
-		int size = this.getQtdeIssues(form.getJSONObject(0), 0);
-		for (int j=1; j<form.length(); j++){
-			size += this.getQtdeIssues(form.getJSONObject(j), 0);
-		}
-		this.stat = new Stat(size);
-
-
-		// Coloca os numeros das perguntas na primeira linha
-		res += this.getLabels(form.getJSONObject(0));
-		for (int j=1; j<form.length(); j++){
-			res += "|" + this.getLabels(form.getJSONObject(j));
+		// Coloca o titulo das perguntas na primeira linha
+		res += form.getTitle(0);
+		for (int j=1; j<form.getSize(); j++){
+			res += "|" + form.getTitle(j);
 		}
 		res += "\n";
 
-		// Coloca os titulos das perguntas na segunda linha
-		res += this.getTitles( form.getJSONObject(0) );
-		for (int j=1; j<form.length(); j++){
-			res += "|" + this.getTitles( form.getJSONObject(j) );
-		}
-		res += "\n";
 
 		// Preenche com as respostas
-		for (int i = 0; i < listFile.length; i++) {
-			text = loadJSON( listFile[i].getAbsolutePath() );
-			form = new JSONArray( text );
-			if ( form.length() > 0 ){
-				res += this.getValues( form.getJSONObject(0), 0, true );
-				for (int j=1; j<form.length(); j++){
-					res += "|" + this.getValues( form.getJSONObject(j), j, true );
-				}
+		for (int i=0; i<listFile.length; i++) {
+			form = new Form();
+			form.load( listFile[i].getAbsolutePath() );
+			res += form.getValue(0);
+			form.addStatistic(0, this.stat);
+			for (int j = 1; j < form.getSize(); j++) {
+				res += "|" + form.getValue(j);
+				form.addStatistic(j, this.stat);
 			}
 			res += "\n";
 		}
 
-		res += stat.toString(form);
 
+		// Preenche com as Estatisticas
+		res += stat.toString( form );
 
 		// Salva todo o formulario em um arquivo
 		return this.save(form_name,res);
@@ -396,12 +256,12 @@ public class ActMain extends AppCompatActivity {
 
 
 	String save(String form_name, String text){
-		SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HHmm");
-		String filename = sdf.format(new Date());
+		//SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd-HHmm");
+		//String filename = sdf.format(new Date());
 
+		String filename = "results.txt";
 		FileOutputStream outputStream;
-
-		File fd = new File( this.root,form_name+"/"+filename+".txt" );
+		File fd = new File( this.root,form_name+"/"+filename );
 		try {
 			outputStream = new FileOutputStream( fd );
 			try {
